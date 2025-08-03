@@ -1,0 +1,235 @@
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>KC Streaming - Watch</title>
+  <style>
+    body {
+      margin: 0;
+      background-color: #000;
+      color: white;
+      font-family: 'Segoe UI', sans-serif;
+    }.header {
+  display: flex;
+  justify-content: space-between;
+  padding: 16px;
+  font-size: 1.5em;
+  background: #111;
+  align-items: center;
+}
+
+.upload-btn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1.5em;
+  cursor: pointer;
+}
+
+.section-title {
+  padding: 10px;
+  font-size: 1.2em;
+  background: #111;
+  margin-top: 20px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(30%, 1fr));
+  gap: 10px;
+  padding: 10px;
+}
+
+.video-box {
+  background: #222;
+  aspect-ratio: 1 / 1;
+  position: relative;
+  cursor: pointer;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.video-box video {
+  width: 100%;
+  height: 85%;
+  object-fit: cover;
+}
+
+.video-title {
+  padding: 5px;
+  font-size: 0.9em;
+  text-align: center;
+  color: #ccc;
+  background: #111;
+}
+
+.video-box::after {
+  content: "\25B6";
+  position: absolute;
+  font-size: 2em;
+  color: rgba(255, 255, 255, 0.4);
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.modal {
+  display: none;
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.8);
+  justify-content: center;
+  align-items: center;
+  z-index: 999;
+}
+
+.modal-content {
+  background: #111;
+  padding: 20px;
+  border-radius: 10px;
+  width: 90%;
+  max-width: 400px;
+}
+
+.modal-content input,
+.modal-content button {
+  width: 100%;
+  padding: 10px;
+  margin: 10px 0;
+  background: #222;
+  border: none;
+  color: white;
+  font-size: 1em;
+  border-radius: 5px;
+}
+
+.close-btn {
+  text-align: right;
+  font-size: 1.5em;
+  cursor: pointer;
+}
+
+  </style>
+</head>
+<body>
+  <div class="header">
+    <span>🎬 KC Streaming</span>
+    <button class="upload-btn" onclick="openModal()">＋</button>
+  </div>  <div class="section-title">🆕 New Video Just Added</div>
+  <div class="grid" id="newUploads"></div>  <div class="section-title">🎞️ Featured Videos</div>
+  <div class="grid" id="videoGrid"></div>  <!-- Upload Modal -->  <div class="modal" id="uploadModal">
+    <div class="modal-content">
+      <div class="close-btn" onclick="closeModal()">✖</div>
+      <input type="text" id="videoTitle" placeholder="Enter video title" />
+      <input type="file" id="videoFile" accept="video/*" />
+      <input type="text" id="videoLink" placeholder="Or paste video link (mp4)" />
+      <button onclick="postVideo()">Post New Video</button>
+    </div>
+  </div>  <script>
+    const videoGrid = document.getElementById("videoGrid");
+    const newUploads = document.getElementById("newUploads");
+    const uploadModal = document.getElementById("uploadModal");
+
+    const sampleVideos = [
+      { title: "Afrobeats Night", preview: "1.mp4" },
+      { title: "Cityscape Chill", preview: "2.mp4" },
+  { title: "Afrostyle", preview: "10.mp4" },
+      { title: " Chill", preview: "3.mp4" },
+  
+  { title: "Night", preview: "11.mp4" },
+      { title: "Cityscape ", preview: "4.mp4" },
+  
+  { title: "A Night", preview: "5.mp4" },
+      { title: "Cite Chill", preview: "6.mp4" },
+  
+  
+  { title: "xxts Night", preview: "7.mp4" },
+      { title: "City Xxx", preview: "8.mp4" },
+  
+      { title: " Vibes", preview: "9.mp4" }
+    ];
+
+    let videoCount = sampleVideos.length;
+
+    function renderVideo({ title, preview }, container) {
+      const box = document.createElement("div");
+      box.className = "video-box";
+
+      const video = document.createElement("video");
+      video.src = preview;
+      video.preload = "metadata";
+      video.muted = true;
+      video.playsInline = true;
+      video.autoplay = true;
+      video.loop = true;
+
+      const titleDiv = document.createElement("div");
+      titleDiv.className = "video-title";
+      titleDiv.innerText = title;
+
+      box.appendChild(video);
+      box.appendChild(titleDiv);
+
+      let clickCount = 0;
+      box.onclick = () => {
+        clickCount++;
+        if (clickCount === 2) {
+          window.location.href = `view.html?vid=${videoCount + 1}`;
+        }
+        setTimeout(() => clickCount = 0, 300);
+      };
+
+      container.appendChild(box);
+    }
+
+    sampleVideos.forEach(v => renderVideo(v, videoGrid));
+
+    function openModal() {
+      uploadModal.style.display = "flex";
+    }
+
+    function closeModal() {
+      uploadModal.style.display = "none";
+    }
+
+    async function postVideo() {
+      const title = document.getElementById("videoTitle").value.trim();
+      const file = document.getElementById("videoFile").files[0];
+      const link = document.getElementById("videoLink").value.trim();
+
+      if (!title) return alert("Enter a title first.");
+
+      let preview = '';
+      if (file) {
+        preview = URL.createObjectURL(file);
+      } else if (link) {
+        preview = link;
+      } else {
+        return alert("Please upload a file or paste a link.");
+      }
+
+      renderVideo({ title, preview }, newUploads);
+      videoCount++;
+      closeModal();
+
+      // Send to backend for tracking
+      try {
+        await fetch('https://your-render-api-url.onrender.com/api/new-video', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title, preview })
+        });
+      } catch (err) {
+        console.error('Upload not tracked on server:', err);
+      }
+
+      document.getElementById("videoTitle").value = '';
+      document.getElementById("videoFile").value = '';
+      document.getElementById("videoLink").value = '';
+    }
+  </script></body>
+</html>

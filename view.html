@@ -1,0 +1,184 @@
+<!-- view.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>KC Streaming - Viewer</title>
+  <style>
+    body {
+      margin: 0;
+      background: #000;
+      color: white;
+      font-family: 'Segoe UI', sans-serif;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 16px;
+      background: #111;
+      font-size: 1.2em;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .controls button {
+      padding: 8px 12px;
+      background: #222;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    video {
+      flex-grow: 1;
+      width: 100%;
+      height: auto;
+      object-fit: contain;
+      background-color: #000;
+      transition: all 0.3s ease;
+    }
+    .landscape video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .fullscreen video {
+      width: 100vw;
+      height: 100vh;
+    }
+    .mobile-fit video {
+      width: 100vw;
+      height: 100vh;
+      object-fit: contain;
+    }
+    .pc-fit video {
+      width: 100vw;
+      height: 90vh;
+      object-fit: fill;
+    }
+    .info-bar {
+      padding: 10px;
+      background: #111;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .info-bar span {
+      font-size: 0.9em;
+    }
+  </style>
+</head>
+<body id="viewerBody">
+  <div class="header">
+    <span>🎬 Now Playing</span>
+    <div class="controls">
+      <button onclick="toggleView()">🔁 Rotate/View Mode</button>
+      <button onclick="setMobileFit()">📱 Fit Android</button>
+      <button onclick="setPCFit()">🖥️ Fit PC</button>
+      <button onclick="downloadVideo()">⬇ Download</button>
+      <button onclick="goBack()">🔙 Back</button>
+    </div>
+  </div>
+
+  <div class="info-bar">
+    <span id="streamCost">Streaming cost: 0 MB</span>
+    <span id="downloadCost">Download cost: 0 MB</span>
+  </div>
+
+  <video id="mainVideo" controls autoplay playsinline>
+    Sorry, your browser doesn’t support video playback.
+  </video>
+
+  <script>
+    const videoEl = document.getElementById("mainVideo");
+    const viewerBody = document.getElementById("viewerBody");
+    const streamCostEl = document.getElementById("streamCost");
+    const downloadCostEl = document.getElementById("downloadCost");
+
+    const params = new URLSearchParams(window.location.search);
+    const vidId = params.get("vid");
+    const videoMap = [
+      "https://samplelib.com/lib/preview/mp4/sample-5s.mp4",
+      "https://samplelib.com/lib/preview/mp4/sample-10s.mp4",
+      "https://samplelib.com/lib/preview/mp4/sample-15s.mp4",
+      "https://samplelib.com/lib/preview/mp4/sample-20s.mp4",
+      "https://samplelib.com/lib/preview/mp4/sample-30s.mp4"
+    ];
+    const defaultVideo = videoMap[(vidId % videoMap.length) || 0];
+    videoEl.src = defaultVideo;
+
+    let viewMode = 0;
+    function toggleView() {
+      viewerBody.className = '';
+      viewMode = (viewMode + 1) % 3;
+      if (viewMode === 1) {
+        viewerBody.classList.add("landscape");
+      } else if (viewMode === 2) {
+        viewerBody.classList.add("fullscreen");
+        if (videoEl.requestFullscreen) videoEl.requestFullscreen();
+      } else {
+        if (document.fullscreenElement) document.exitFullscreen();
+      }
+    }
+
+    function setMobileFit() {
+      viewerBody.className = "mobile-fit";
+      if (screen.orientation && screen.orientation.lock) {
+        screen.orientation.lock('landscape').catch(() => {});
+      }
+    }
+
+    function setPCFit() {
+      viewerBody.className = "pc-fit";
+    }
+
+    function downloadVideo() {
+      const link = document.createElement('a');
+      link.href = videoEl.src;
+      link.download = 'video.mp4';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      const estimatedSizeMB = 10;
+      const charge = (estimatedSizeMB * 2.5).toFixed(1);
+      downloadCostEl.textContent = `Download cost: ${charge} MB`;
+      fetch('/api/track-download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ videoId: vidId, size: estimatedSizeMB })
+      });
+    }
+
+    function goBack() {
+      window.location.href = "watch.html";
+    }
+
+    let secondsViewed = 0;
+    setInterval(() => {
+      if (!videoEl.paused && !videoEl.ended) {
+        secondsViewed++;
+        const charge = (secondsViewed * 1.5).toFixed(1);
+        streamCostEl.textContent = `Streaming cost: ${charge} MB`;
+        fetch('/api/track-stream', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ videoId: vidId, seconds: secondsViewed })
+        });
+      }
+    }, 1000);
+
+    window.addEventListener("load", () => {
+      const width = window.innerWidth;
+      width < 768 ? setMobileFit() : setPCFit();
+    });
+  </script>
+</body>
+</html>

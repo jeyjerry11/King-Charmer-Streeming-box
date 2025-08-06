@@ -6,14 +6,64 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>KC Streaming - Viewer</title>
   <style>
-    /* (same CSS as yours, unchanged for brevity) */
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      background-color: #111;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: #222;
+      padding: 10px 20px;
+    }
+
+    .controls button {
+      margin: 0 5px;
+      padding: 5px 10px;
+      background: #444;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .info-bar {
+      background-color: #333;
+      padding: 8px 20px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.9rem;
+    }
+
+    #videoWrapper {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px;
+    }
+
+    video {
+      max-width: 100%;
+      max-height: 100%;
+      border: 4px solid #666;
+      border-radius: 12px;
+    }
   </style>
 </head>
 <body id="viewerBody">
+
   <div class="header">
     <span>🎬 Now Playing</span>
     <div class="controls">
-      <button onclick="toggleView()">🔁 Rotate/View Mode</button>
+      <button onclick="toggleView()">🔁 Rotate</button>
       <button onclick="setMobileFit()">📱 Fit Android</button>
       <button onclick="setPCFit()">🖥️ Fit PC</button>
       <button onclick="downloadVideo()">⬇ Download</button>
@@ -26,18 +76,21 @@
     <span id="downloadCost">Download cost: 0 MB</span>
   </div>
 
-  <video id="mainVideo" controls autoplay playsinline>
-    Sorry, your browser doesn’t support video playback.
-  </video>
+  <div id="videoWrapper">
+    <video id="mainVideo" controls autoplay playsinline>
+      Sorry, your browser doesn’t support video playback.
+    </video>
+  </div>
 
   <script>
     const videoEl = document.getElementById("mainVideo");
-    const viewerBody = document.getElementById("viewerBody");
     const streamCostEl = document.getElementById("streamCost");
     const downloadCostEl = document.getElementById("downloadCost");
 
     const params = new URLSearchParams(window.location.search);
     const videoUrl = decodeURIComponent(params.get("vid"));
+    const videoId = params.get("id");
+
     if (videoUrl) {
       videoEl.src = videoUrl;
     } else {
@@ -45,27 +98,22 @@
     }
 
     function toggleView() {
-      viewerBody.className = '';
-      viewMode = (viewMode + 1) % 3;
-      if (viewMode === 1) {
-        viewerBody.classList.add("landscape");
-      } else if (viewMode === 2) {
-        viewerBody.classList.add("fullscreen");
-        if (videoEl.requestFullscreen) videoEl.requestFullscreen();
+      document.body.classList.toggle("fullscreen");
+      if (videoEl.requestFullscreen) {
+        videoEl.requestFullscreen();
       } else {
-        if (document.fullscreenElement) document.exitFullscreen();
+        document.exitFullscreen();
       }
     }
 
     function setMobileFit() {
-      viewerBody.className = "mobile-fit";
-      if (screen.orientation && screen.orientation.lock) {
-        screen.orientation.lock('landscape').catch(() => {});
-      }
+      videoEl.style.width = "100%";
+      videoEl.style.height = "auto";
     }
 
     function setPCFit() {
-      viewerBody.className = "pc-fit";
+      videoEl.style.width = "80%";
+      videoEl.style.height = "auto";
     }
 
     function downloadVideo() {
@@ -75,15 +123,20 @@
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+
       const estimatedSizeMB = 10;
       const charge = (estimatedSizeMB * 2.5).toFixed(1);
       downloadCostEl.textContent = `Download cost: ${charge} MB`;
 
-      // ✅ Backend tracking (download)
       fetch('https://king-charmer-streeming-box.onrender.com/api/track-download', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ videoUrl, size: estimatedSizeMB })
+        body: JSON.stringify({
+          videoId,
+          videoUrl,
+          size: estimatedSizeMB,
+          timestamp: new Date().toISOString()
+        })
       }).catch(err => console.error("Download tracking failed:", err));
     }
 
@@ -91,7 +144,7 @@
       window.location.href = "watch.html";
     }
 
-    // ✅ Streaming cost tracking
+    // Tracking streaming data every second
     let secondsViewed = 0;
     setInterval(() => {
       if (!videoEl.paused && !videoEl.ended) {
@@ -102,17 +155,15 @@
         fetch('https://king-charmer-streeming-box.onrender.com/api/track-stream', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ videoUrl, seconds: secondsViewed })
+          body: JSON.stringify({
+            videoId,
+            videoUrl,
+            seconds: 1,
+            timestamp: new Date().toISOString()
+          })
         }).catch(err => console.error("Stream tracking failed:", err));
       }
     }, 1000);
-
-    window.addEventListener("load", () => {
-      const width = window.innerWidth;
-      width < 768 ? setMobileFit() : setPCFit();
-    });
-
-    let viewMode = 0;
   </script>
 </body>
 </html>

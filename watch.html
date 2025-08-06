@@ -117,7 +117,7 @@
 </head>
 <body>
   <div class="header">
-    <span>🎬 King Charmer Streaming Box</span>
+    <span>🎬 KC Streaming</span>
     <button class="upload-btn" onclick="openModal()">＋</button>
   </div>  <div class="section-title">🆕 New Video Just Added</div>
   <div class="grid" id="newUploads"></div>  <div class="section-title">🎞️ Featured Videos</div>
@@ -143,7 +143,7 @@
   { title: "Night", preview: "11.mp4" },
       { title: "Cityscape ", preview: "4.mp4" },
   
-  { title: "A Night", preview: "https://www.w3schools.com/html/mov_bbb.mp4" },
+  { title: "A Night", preview: "5.mp4" },
       { title: "Cite Chill", preview: "6.mp4" },
   
   
@@ -217,7 +217,8 @@
       closeModal();
 
       // Send to backend for tracking
-  await fetch('https://king-charmer-streeming-box.onrender.com/api/new-video', {
+      try {
+        await fetch('https://your-render-api-url.onrender.com/api/new-video', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ title, preview })

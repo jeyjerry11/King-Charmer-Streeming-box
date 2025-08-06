@@ -52,6 +52,7 @@ app.post('/api/track-stream', async (req, res) => {
 
     console.log(`📺 Stream logged: ${videoId}, ${seconds || 0}s`);
     res.status(201).json({ message: 'Stream logged' });
+
   } catch (err) {
     console.error('Stream log error:', err);
     res.status(500).json({ error: 'Failed to log stream' });
@@ -69,6 +70,7 @@ app.post('/api/track-download', async (req, res) => {
 
     console.log(`⬇️ Download logged: ${videoId}, ${size || 0}MB`);
     res.status(201).json({ message: 'Download logged' });
+
   } catch (err) {
     console.error('Download log error:', err);
     res.status(500).json({ error: 'Failed to log download' });
@@ -84,6 +86,7 @@ app.post('/api/new-video', async (req, res) => {
 
     console.log(`🎥 New video uploaded: ${title}`);
     res.status(201).json({ message: 'Video uploaded', video });
+
   } catch (err) {
     console.error('Upload error:', err);
     res.status(500).json({ error: 'Upload failed' });
@@ -107,7 +110,5 @@ app.get('/', (req, res) => {
 });
 
 // Start server
-const PORT = process.env.PORT || 10000; // render wants port 10000 or dynamic port
-app.listen(PORT, () =>
-  console.log(`🌍 Server running at http://localhost:${PORT}`)
-);
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => console.log(`🌍 Server running at http://localhost:${PORT}`));

@@ -110,10 +110,10 @@
     <span>🎬 King Charmer Streaming</span>
     <button class="upload-btn" onclick="openModal()">＋</button>
   </div>
-  
+
   <div class="section-title">🆕 New Video Just Added</div>
   <div class="grid" id="newUploads"></div>
-  
+
   <div class="section-title">🎞️ Featured Videos</div>
   <div class="grid" id="videoGrid"></div>
 
@@ -132,6 +132,10 @@
     const videoGrid = document.getElementById("videoGrid");
     const newUploads = document.getElementById("newUploads");
     const uploadModal = document.getElementById("uploadModal");
+
+    const CLOUDINARY_UPLOAD_PRESET = "your_unsigned_preset"; // <- Replace
+    const CLOUDINARY_CLOUD_NAME = "your_cloud_name"; // <- Replace
+    const BACKEND_URL = "https://king-charmer-streeming-box.onrender.com";
 
     const sampleVideos = [
       { title: "Afrobeats Night", preview: "https://www.w3schools.com/html/mov_bbb.mp4" },
@@ -192,8 +196,23 @@
       if (!title) return alert("Enter a title first.");
 
       let preview = '';
+
       if (file) {
-        preview = URL.createObjectURL(file);
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+
+        try {
+          const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/video/upload`, {
+            method: "POST",
+            body: formData
+          });
+
+          const cloudResult = await res.json();
+          preview = cloudResult.secure_url;
+        } catch (err) {
+          return alert("Cloud upload failed.");
+        }
       } else if (link) {
         preview = link;
       } else {
@@ -204,13 +223,13 @@
       closeModal();
 
       try {
-        await fetch('https://king-charmer-streeming-box.onrender.com', {
-          method: 'POST',
+        await fetch(`${BACKEND_URL}/api/new-video`, {
+          method: "POST",
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ title, preview })
         });
       } catch (err) {
-        console.error('Upload not tracked on server:', err);
+        console.error('Server save failed:', err);
       }
 
       document.getElementById("videoTitle").value = '';

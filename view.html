@@ -116,6 +116,10 @@
       videoEl.style.height = "auto";
     }
 
+    function goBack() {
+      window.location.href = "watch.html";
+    }
+
     function downloadVideo() {
       const link = document.createElement('a');
       link.href = videoEl.src;
@@ -132,19 +136,14 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          videoId,
-          videoUrl,
+          videoId: videoId,
           size: estimatedSizeMB,
           timestamp: new Date().toISOString()
         })
       }).catch(err => console.error("Download tracking failed:", err));
     }
 
-    function goBack() {
-      window.location.href = "watch.html";
-    }
-
-    // Tracking streaming data every second
+    // Stream tracking logic
     let secondsViewed = 0;
     setInterval(() => {
       if (!videoEl.paused && !videoEl.ended) {
@@ -156,8 +155,7 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            videoId,
-            videoUrl,
+            videoId: videoId,
             seconds: 1,
             timestamp: new Date().toISOString()
           })

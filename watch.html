@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>KC Streaming - Watch</title>
   <style>
-    /* ==== Existing styles preserved ==== */
     body { margin: 0; background-color: #000; color: white; font-family: 'Segoe UI', sans-serif; }
     .header { display: flex; justify-content: space-between; padding: 16px; font-size: 1.5em; background: #111; align-items: center; }
     .upload-btn { background: none; border: none; color: white; font-size: 1.5em; cursor: pointer; }
@@ -68,10 +67,23 @@
   <script>
     // ==== Age verification logic ====
     const ageModal = document.getElementById("ageModal");
+    const welcomeMessage = document.querySelector(".welcome-message");
     function confirmAge(isAdult){
-      if(isAdult) window.location.href="watch.html";
-      else { alert("You must be 18+ to access."); window.location.reload(); }
+      if(isAdult){
+        ageModal.style.display = "none";
+        welcomeMessage.style.display = "none";
+        localStorage.setItem("isAdult", "yes");
+      } else {
+        alert("You must be 18+ to access.");
+        window.location.reload();
+      }
     }
+    window.addEventListener("DOMContentLoaded", () => {
+      if(localStorage.getItem("isAdult") === "yes"){
+        ageModal.style.display = "none";
+        welcomeMessage.style.display = "none";
+      }
+    });
   </script>
 
   <script>

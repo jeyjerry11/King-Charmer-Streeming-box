@@ -66,7 +66,7 @@
       <button onclick="toggleView()">🔁 Rotate</button>
       <button onclick="setMobileFit()">📱 Fit Android</button>
       <button onclick="setPCFit()">🖥️ Fit PC</button>
-      <button onclick="downloadVideo()">⬇ Download</button>
+      <button class="download-btn" onclick="downloadVideo()">⬇ Download</button>
       <button onclick="goBack()">🔙 Back</button>
     </div>
   </div>
@@ -86,6 +86,7 @@
     const videoEl = document.getElementById("mainVideo");
     const streamCostEl = document.getElementById("streamCost");
     const downloadCostEl = document.getElementById("downloadCost");
+    const apiBase = "https://kingcharmer-analytics-co-ng.onrender.com";
 
     const params = new URLSearchParams(window.location.search);
     const videoUrl = decodeURIComponent(params.get("vid"));
@@ -97,8 +98,8 @@
       alert("No video URL provided.");
     }
 
+    // --- Video Controls ---
     function toggleView() {
-      document.body.classList.toggle("fullscreen");
       if (videoEl.requestFullscreen) {
         videoEl.requestFullscreen();
       } else {
@@ -132,6 +133,7 @@
       const charge = (estimatedSizeMB * 2.5).toFixed(1);
       downloadCostEl.textContent = `Download cost: ${charge} MB`;
 
+      // Track download in your streaming backend
       fetch('https://king-charmer-streeming-box.onrender.com/api/track-download', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -141,9 +143,12 @@
           timestamp: new Date().toISOString()
         })
       }).catch(err => console.error("Download tracking failed:", err));
+
+      // Track download in analytics
+      sendEvent("download", 0.5);
     }
 
-    // Stream tracking logic
+    // --- Streaming tracking ---
     let secondsViewed = 0;
     setInterval(() => {
       if (!videoEl.paused && !videoEl.ended) {
@@ -162,74 +167,38 @@
         }).catch(err => console.error("Stream tracking failed:", err));
       }
     }, 1000);
+
+    // --- Analytics Tracking ---
+    videoEl.addEventListener("play", () => sendEvent("view", 0.02));
+
+    async function sendEvent(event, dataUsed) {
+      try {
+        await fetch(`${apiBase}/api/event`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            event,
+            provider: getNetworkProvider(),
+            dataUsed,
+            videoId
+          })
+        });
+        console.log(`✅ Logged ${event} (${dataUsed}GB)`);
+      } catch (err) {
+        console.error(`❌ Failed to log ${event}:`, err);
+      }
+    }
+
+    // --- Detect mobile network provider ---
+    function getNetworkProvider() {
+      const ua = navigator.userAgent.toLowerCase();
+      if (ua.includes("mtn")) return "MTN";
+      if (ua.includes("airtel")) return "Airtel";
+      if (ua.includes("glo")) return "Glo";
+      if (ua.includes("9mobile")) return "9mobile";
+      return "Unknown";
+    }
   </script>
-<script>
-const apiBase = "https://kingcharmer-analytics-co-ng.onrender.com";
 
-// When a user plays a video
-function logVideoPlay(videoId, title) {
-  fetch(`${apiBase}/api/log-view`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      videoId,
-      title,
-      timestamp: new Date().toISOString()
-    })
-  })
-  .then(res => res.json())
-  .then(data => console.log("📊 View logged:", data))
-  .catch(err => console.error("❌ Failed to log view:", err));
-}
-
-// Example: attach to your video element
-const vid = document.getElementById("myVideo");
-vid.addEventListener("play", () => {
-  logVideoPlay("vid001", "My First Stream");
-});
-</script>
-<script>
-const apiBase = "https://kingcharmer-analytics-co-ng.onrender.com";
-
-// Track view when a video starts playing
-document.querySelectorAll("video").forEach(video => {
-  video.addEventListener("play", async () => {
-    await fetch(`${apiBase}/api/event`, {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({
-        event: "view",
-        provider: getNetworkProvider(), // optional function below
-        dataUsed: 0.02 // roughly 20MB = 0.02GB per view start
-      })
-    });
-  });
-});
-
-// Track download (attach this to your download button)
-document.querySelectorAll(".download-btn").forEach(btn => {
-  btn.addEventListener("click", async () => {
-    await fetch(`${apiBase}/api/event`, {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({
-        event: "download",
-        provider: getNetworkProvider(),
-        dataUsed: 0.5 // 500MB example
-      })
-    });
-  });
-});
-
-// Optional: auto-detect network provider
-function getNetworkProvider() {
-  const userAgent = navigator.userAgent.toLowerCase();
-  if (userAgent.includes("mtn")) return "MTN";
-  if (userAgent.includes("airtel")) return "Airtel";
-  if (userAgent.includes("glo")) return "Glo";
-  if (userAgent.includes("9mobile")) return "9mobile";
-  return "Unknown";
-}
-</script>
 </body>
 </html>

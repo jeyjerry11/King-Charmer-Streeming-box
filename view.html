@@ -127,7 +127,7 @@
     setInterval(() => {
       if (!videoEl.paused && !videoEl.ended) {
         secondsViewed++;
-        const charge = (secondsViewed * 1.5).toFixed(1);
+        const charge = (secondsViewed * 1.8).toFixed(1);
         streamCostEl.textContent = `Streaming cost: ${charge} MB`;
 
         fetch(`${BACKEND_URL}/api/track-stream`, {

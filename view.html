@@ -163,5 +163,30 @@
       }
     }, 1000);
   </script>
+<script>
+const apiBase = "https://kingcharmer-analytics-co-ng.onrender.com";
+
+// When a user plays a video
+function logVideoPlay(videoId, title) {
+  fetch(`${apiBase}/api/log-view`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      videoId,
+      title,
+      timestamp: new Date().toISOString()
+    })
+  })
+  .then(res => res.json())
+  .then(data => console.log("📊 View logged:", data))
+  .catch(err => console.error("❌ Failed to log view:", err));
+}
+
+// Example: attach to your video element
+const vid = document.getElementById("myVideo");
+vid.addEventListener("play", () => {
+  logVideoPlay("vid001", "My First Stream");
+});
+</script>
 </body>
 </html>

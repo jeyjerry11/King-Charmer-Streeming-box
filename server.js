@@ -14,7 +14,7 @@ mongoose.connect(MONGO_URI)
   .then(() => console.log('✅ MongoDB Connected'))
   .catch(err => console.error('❌ MongoDB Error:', err));
 
-// Schemas
+// ===== Schemas =====
 const StreamSchema = new mongoose.Schema({
   videoId: { type: String, required: true },
   seconds: Number,
@@ -34,14 +34,21 @@ const UploadSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
-// Models
+const ViewSchema = new mongoose.Schema({
+  videoId: String,
+  title: String,
+  timestamp: { type: Date, default: Date.now }
+});
+
+// ===== Models =====
 const StreamLog = mongoose.model('StreamLog', StreamSchema);
 const DownloadLog = mongoose.model('DownloadLog', DownloadSchema);
 const Video = mongoose.model('Video', UploadSchema);
+const View = mongoose.model('View', ViewSchema);
 
-// ROUTES
+// ===== ROUTES =====
 
-// ✅ Always log stream events, even repeated
+// Track streams
 app.post('/api/track-stream', async (req, res) => {
   try {
     const { videoId, seconds } = req.body;
@@ -52,14 +59,13 @@ app.post('/api/track-stream', async (req, res) => {
 
     console.log(`📺 Stream logged: ${videoId}, ${seconds || 0}s`);
     res.status(201).json({ message: 'Stream logged' });
-
   } catch (err) {
     console.error('Stream log error:', err);
     res.status(500).json({ error: 'Failed to log stream' });
   }
 });
 
-// ✅ Always log download events, even repeated
+// Track downloads
 app.post('/api/track-download', async (req, res) => {
   try {
     const { videoId, size } = req.body;
@@ -70,14 +76,13 @@ app.post('/api/track-download', async (req, res) => {
 
     console.log(`⬇️ Download logged: ${videoId}, ${size || 0}MB`);
     res.status(201).json({ message: 'Download logged' });
-
   } catch (err) {
     console.error('Download log error:', err);
     res.status(500).json({ error: 'Failed to log download' });
   }
 });
 
-// Upload new video
+// Upload video
 app.post('/api/new-video', async (req, res) => {
   try {
     const { title, url, uploadSize } = req.body;
@@ -86,7 +91,6 @@ app.post('/api/new-video', async (req, res) => {
 
     console.log(`🎥 New video uploaded: ${title}`);
     res.status(201).json({ message: 'Video uploaded', video });
-
   } catch (err) {
     console.error('Upload error:', err);
     res.status(500).json({ error: 'Upload failed' });
@@ -101,6 +105,20 @@ app.get('/api/videos', async (req, res) => {
   } catch (err) {
     console.error('Fetch videos error:', err);
     res.status(500).json({ error: 'Failed to fetch videos' });
+  }
+});
+
+// Log view (analytics)
+app.post("/api/log-view", async (req, res) => {
+  try {
+    const { videoId, title, timestamp } = req.body;
+    const view = new View({ videoId, title, timestamp });
+    await view.save();
+    console.log(`📊 View logged: ${videoId} - ${title}`);
+    res.json({ message: "View saved successfully" });
+  } catch (err) {
+    console.error('❌ View log error:', err);
+    res.status(500).json({ error: "Failed to save view" });
   }
 });
 

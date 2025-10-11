@@ -1,3 +1,4 @@
+// ===== server.js =====
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -8,9 +9,12 @@ app.use(cors());
 app.use(express.json());
 
 // MongoDB Connection
-const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://KingCharmerStreeming:Asdf0909@cluster0.il7ja6v.mongodb.net/kc_streaming?retryWrites=true&w=majority&appName=Cluster0';
+const MONGO_URI =
+  process.env.MONGO_URI ||
+  'mongodb+srv://KingCharmerStreeming:Asdf0909@cluster0.il7ja6v.mongodb.net/kc_streaming?retryWrites=true&w=majority&appName=Cluster0';
 
-mongoose.connect(MONGO_URI)
+mongoose
+  .connect(MONGO_URI)
   .then(() => console.log('✅ MongoDB Connected'))
   .catch(err => console.error('❌ MongoDB Error:', err));
 
@@ -18,28 +22,35 @@ mongoose.connect(MONGO_URI)
 const StreamSchema = new mongoose.Schema({
   videoId: { type: String, required: true },
   seconds: Number,
-  provider: { type: String, required: true }, // ✅ Add provider
-  timestamp: { type: Date, default: Date.now }
+  provider: { type: String, required: true },
+  dataUsedMB: Number,
+  earnedNGN: Number,
+  timestamp: { type: Date, default: Date.now },
 });
 
 const DownloadSchema = new mongoose.Schema({
   videoId: { type: String, required: true },
   size: Number,
-  timestamp: { type: Date, default: Date.now }
+  ngn: Number,
+  provider: String,
+  timestamp: { type: Date, default: Date.now },
 });
 
 const UploadSchema = new mongoose.Schema({
   title: String,
   url: String,
   uploadSize: Number,
-  createdAt: { type: Date, default: Date.now }
+  createdAt: { type: Date, default: Date.now },
 });
 
 const ViewSchema = new mongoose.Schema({
   videoId: String,
   title: String,
-  provider: String, // ✅ Track provider for analytics
-  timestamp: { type: Date, default: Date.now }
+  provider: String,
+  event: String,
+  dataUsedMB: Number,
+  earnedNGN: Number,
+  timestamp: { type: Date, default: Date.now },
 });
 
 // ===== Models =====
@@ -50,16 +61,27 @@ const View = mongoose.model('View', ViewSchema);
 
 // ===== ROUTES =====
 
-// Track streams (with provider)
+// 🧩 Stream tracking (with provider & cost)
 app.post('/api/track-stream', async (req, res) => {
   try {
-    const { videoId, seconds, provider } = req.body;
-    if (!videoId || !provider) return res.status(400).json({ error: 'videoId and provider required' });
+    const { videoId, seconds, provider, dataUsedMB, earnedNGN } = req.body;
+    if (!videoId || !provider)
+      return res.status(400).json({ error: 'videoId and provider required' });
 
-    const stream = new StreamLog({ videoId, seconds, provider });
+    const stream = new StreamLog({
+      videoId,
+      seconds,
+      provider,
+      dataUsedMB,
+      earnedNGN,
+    });
     await stream.save();
 
-    console.log(`📺 Stream logged: ${videoId}, ${seconds || 0}s, Provider: ${provider}`);
+    console.log(
+      `📺 Stream logged: ${videoId}, ${seconds || 0}s, ${dataUsedMB || 0}MB, ₦${
+        earnedNGN || 0
+      }, Provider: ${provider}`
+    );
     res.status(201).json({ message: 'Stream logged' });
   } catch (err) {
     console.error('Stream log error:', err);
@@ -67,16 +89,17 @@ app.post('/api/track-stream', async (req, res) => {
   }
 });
 
-// Track downloads
+// ⬇️ Download tracking
 app.post('/api/track-download', async (req, res) => {
   try {
-    const { videoId, size } = req.body;
-    if (!videoId) return res.status(400).json({ error: 'videoId required' });
+    const { videoId, size, ngn, provider } = req.body;
+    if (!videoId)
+      return res.status(400).json({ error: 'videoId required' });
 
-    const download = new DownloadLog({ videoId, size });
+    const download = new DownloadLog({ videoId, size, ngn, provider });
     await download.save();
 
-    console.log(`⬇️ Download logged: ${videoId}, ${size || 0}MB`);
+    console.log(`⬇️ Download logged: ${videoId}, ${size || 0}MB, ₦${ngn || 0}`);
     res.status(201).json({ message: 'Download logged' });
   } catch (err) {
     console.error('Download log error:', err);
@@ -84,11 +107,11 @@ app.post('/api/track-download', async (req, res) => {
   }
 });
 
-// Upload video
+// 🎥 Upload new video
 app.post('/api/new-video', async (req, res) => {
   try {
-    const { title, url, uploadSize } = req.body;
-    const video = new Video({ title, url, uploadSize });
+    const { title, preview, uploadSize } = req.body;
+    const video = new Video({ title, url: preview, uploadSize });
     await video.save();
 
     console.log(`🎥 New video uploaded: ${title}`);
@@ -99,20 +122,54 @@ app.post('/api/new-video', async (req, res) => {
   }
 });
 
-// Log view (analytics) with provider
-app.post("/api/log-view", async (req, res) => {
+// 📊 Log view (analytics events)
+app.post('/api/log-view', async (req, res) => {
   try {
-    const { videoId, title, provider } = req.body;
-    if (!videoId || !provider) return res.status(400).json({ error: 'videoId and provider required' });
+    const { videoId, title, provider, event, dataUsedMB, earnedNGN } = req.body;
+    if (!videoId || !provider)
+      return res.status(400).json({ error: 'videoId and provider required' });
 
-    const view = new View({ videoId, title, provider });
+    const view = new View({
+      videoId,
+      title,
+      provider,
+      event,
+      dataUsedMB,
+      earnedNGN,
+    });
     await view.save();
 
-    console.log(`📊 View logged: ${videoId} - ${title}, Provider: ${provider}`);
-    res.json({ message: "View saved successfully" });
+    console.log(`📊 View logged: ${videoId}, ${event}, Provider: ${provider}`);
+    res.json({ message: 'View saved successfully' });
   } catch (err) {
     console.error('❌ View log error:', err);
-    res.status(500).json({ error: "Failed to save view" });
+    res.status(500).json({ error: 'Failed to save view' });
+  }
+});
+
+// 🧮 Analytics summary (for analytics.html)
+app.get('/api/analytics-summary', async (req, res) => {
+  try {
+    const streamCount = await StreamLog.countDocuments();
+    const downloadCount = await DownloadLog.countDocuments();
+    const videoCount = await Video.countDocuments();
+    const views = await View.find();
+
+    const providerStats = {};
+    for (const v of views) {
+      if (!providerStats[v.provider]) providerStats[v.provider] = 0;
+      providerStats[v.provider]++;
+    }
+
+    res.json({
+      totalStreams: streamCount,
+      totalDownloads: downloadCount,
+      totalVideos: videoCount,
+      providerStats,
+    });
+  } catch (err) {
+    console.error('❌ Analytics summary error:', err);
+    res.status(500).json({ error: 'Failed to load analytics summary' });
   }
 });
 
@@ -134,4 +191,6 @@ app.get('/', (req, res) => {
 
 // Start server
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log(`🌍 Server running at http://localhost:${PORT}`));
+app.listen(PORT, () =>
+  console.log(`🌍 Server running at http://localhost:${PORT}`)
+);

@@ -104,6 +104,58 @@
       cursor: pointer;
     }
   </style>
+    <style>
+    body {
+      margin: 0;
+      background-color: #000;
+      color: white;
+      font-family: 'Segoe UI', sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      overflow: hidden;
+    }
+    .welcome-message {
+      text-align: center;
+    }
+    .age-modal {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(0,0,0,0.9);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+      flex-direction: column;
+    }
+    .age-modal h1 {
+      color: #fff;
+      margin-bottom: 20px;
+      font-size: 1.5em;
+    }
+    .age-modal button {
+      padding: 12px 30px;
+      margin: 10px;
+      font-size: 1em;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .age-modal button.yes {
+      background-color: #0b6efd;
+      color: white;
+    }
+    .age-modal button.no {
+      background-color: #dc3545;
+      color: white;
+    }
+    .age-modal button:hover {
+      opacity: 0.8;
+    }
+  </style>
 </head>
 <body>
   <div class="header">
@@ -127,7 +179,35 @@
       <button onclick="postVideo()">Post New Video</button>
     </div>
   </div>
+  <div class="welcome-message">
+    <h1>🎬 Welcome to King Charmer Streaming</h1>
+    <p>Before you enter, please verify your age.</p>
+  </div>
 
+  <!-- Age Verification Modal -->
+  <div class="age-modal" id="ageModal">
+    <h1>Are you 18+ years old?</h1>
+    <p>  This is an adult streeming plartform it has erotic view</p>
+    <div>
+      <button class="yes" onclick="confirmAge(true)">Yes</button>
+      <button class="no" onclick="confirmAge(false)">No</button>
+    </div>
+  </div>
+
+  <script>
+    const ageModal = document.getElementById("ageModal");
+
+    function confirmAge(isAdult) {
+      if (isAdult) {
+        // ✅ User is 18+, redirect to watch.html
+        window.location.href = "watch.html";
+      } else {
+        // ❌ Not 18, show alert then reload
+        alert("You must be 18+ to access this site. Please wait until you are old enough.");
+        window.location.reload();
+      }
+    }
+  </script>
   <script>
     const videoGrid = document.getElementById("videoGrid");
     const newUploads = document.getElementById("newUploads");
@@ -263,5 +343,6 @@
       video.addEventListener("play", () => sendAnalytics("view", 0.02));
     });
   </script>
+  
 </body>
 </html>

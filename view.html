@@ -188,5 +188,48 @@ vid.addEventListener("play", () => {
   logVideoPlay("vid001", "My First Stream");
 });
 </script>
+<script>
+const apiBase = "https://kingcharmer-analytics-co-ng.onrender.com";
+
+// Track view when a video starts playing
+document.querySelectorAll("video").forEach(video => {
+  video.addEventListener("play", async () => {
+    await fetch(`${apiBase}/api/event`, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        event: "view",
+        provider: getNetworkProvider(), // optional function below
+        dataUsed: 0.02 // roughly 20MB = 0.02GB per view start
+      })
+    });
+  });
+});
+
+// Track download (attach this to your download button)
+document.querySelectorAll(".download-btn").forEach(btn => {
+  btn.addEventListener("click", async () => {
+    await fetch(`${apiBase}/api/event`, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        event: "download",
+        provider: getNetworkProvider(),
+        dataUsed: 0.5 // 500MB example
+      })
+    });
+  });
+});
+
+// Optional: auto-detect network provider
+function getNetworkProvider() {
+  const userAgent = navigator.userAgent.toLowerCase();
+  if (userAgent.includes("mtn")) return "MTN";
+  if (userAgent.includes("airtel")) return "Airtel";
+  if (userAgent.includes("glo")) return "Glo";
+  if (userAgent.includes("9mobile")) return "9mobile";
+  return "Unknown";
+}
+</script>
 </body>
 </html>

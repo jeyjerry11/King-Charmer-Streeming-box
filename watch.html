@@ -138,7 +138,7 @@
     const BACKEND_URL = "https://king-charmer-streeming-box.onrender.com";
     const ANALYTICS_URL = "https://kingcharmer-analytics-co-ng.onrender.com";
 
-    // ✅ Sample videos
+    // Sample videos array (your original list preserved)
     const sampleVideos = [
       { title: "Afrobeats Night", preview: "XNXX_cum_inside_and_push_what_came_out_back._creampie_close_up_360p.mp4" },
       { title: "Cityscape Chill", preview: "2.mp4" },
@@ -179,6 +179,7 @@
       box.onclick = () => {
         const encodedURL = encodeURIComponent(preview);
         window.location.href = `view.html?vid=${encodedURL}`;
+        sendAnalytics("click", 0); // optional click logging
       };
 
       container.appendChild(box);
@@ -195,6 +196,7 @@
       const link = document.getElementById("videoLink").value.trim();
 
       if (!title) return alert("Enter a title first.");
+
       let preview = '';
 
       if (file) {
@@ -203,10 +205,7 @@
         formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
 
         try {
-          const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/video/upload`, {
-            method: "POST",
-            body: formData
-          });
+          const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/video/upload`, { method: "POST", body: formData });
           const cloudResult = await res.json();
           preview = cloudResult.secure_url;
         } catch (err) {
@@ -236,17 +235,8 @@
       document.getElementById("videoLink").value = '';
     }
 
-    // --- Analytics Tracking ---
-    function getNetworkProvider() {
-      const ua = navigator.userAgent.toLowerCase();
-      if (ua.includes("mtn")) return "MTN";
-      if (ua.includes("airtel")) return "Airtel";
-      if (ua.includes("glo")) return "Glo";
-      if (ua.includes("9mobile")) return "9mobile";
-      return "Unknown";
-    }
-
-    async function sendEvent(event, dataUsed) {
+    // --- Unified analytics function ---
+    async function sendAnalytics(event, dataUsed) {
       try {
         await fetch(`${ANALYTICS_URL}/api/event`, {
           method: "POST",
@@ -259,11 +249,19 @@
       }
     }
 
-    // Attach tracking to all videos
-    document.querySelectorAll("video").forEach(video => {
-      video.addEventListener("play", () => sendEvent("view", 0.02));
-    });
+    function getNetworkProvider() {
+      const ua = navigator.userAgent.toLowerCase();
+      if (ua.includes("mtn")) return "MTN";
+      if (ua.includes("airtel")) return "Airtel";
+      if (ua.includes("glo")) return "Glo";
+      if (ua.includes("9mobile")) return "9mobile";
+      return "Unknown";
+    }
 
+    // Optional: log video play events
+    document.querySelectorAll("video").forEach(video => {
+      video.addEventListener("play", () => sendAnalytics("view", 0.02));
+    });
   </script>
 </body>
 </html>

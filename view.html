@@ -108,18 +108,26 @@
       link.click();
       document.body.removeChild(link);
 
-      const estimatedSizeMB = 10;
-      const charge = (estimatedSizeMB * 2.5).toFixed(1);
-      downloadCostEl.textContent = `Download cost: ${charge} MB`;
+      // Calculate MB based on video duration (1MB per second)
+      const durationSec = videoEl.duration || 1; // fallback to 1s
+      const downloadMB = Math.ceil(durationSec); // 1MB per second
+      const chargeNGN = downloadMB; // 1MB = 1₦
+      downloadCostEl.textContent = `Download cost: ${chargeNGN} MB / ₦${chargeNGN}`;
 
-      // Backend tracking
+      // Backend tracking for download
       fetch(`${BACKEND_URL}/api/track-download`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ videoId, size: estimatedSizeMB, timestamp: new Date().toISOString() })
+        body: JSON.stringify({
+          videoId,
+          sizeMB: downloadMB,
+          ngn: chargeNGN,
+          provider: getNetworkProvider(),
+          timestamp: new Date().toISOString()
+        })
       }).catch(err => console.error("Download tracking failed:", err));
 
-      sendAnalytics("download", 0.5); // unified analytics
+      sendAnalytics("download", downloadMB);
     }
 
     // --- Stream tracking ---
@@ -127,44 +135,69 @@
     setInterval(() => {
       if (!videoEl.paused && !videoEl.ended) {
         secondsViewed++;
-        const charge = (secondsViewed * 1.8).toFixed(1);
-        streamCostEl.textContent = `Streaming cost: ${charge} MB`;
+        const chargeMB = secondsViewed; // 1MB per second
+        const chargeNGN = secondsViewed; // 1₦ per second
+        streamCostEl.textContent = `Streaming cost: ${chargeMB} MB / ₦${chargeNGN}`;
 
+        // Backend tracking for stream
         fetch(`${BACKEND_URL}/api/track-stream`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ videoId, seconds: 1, timestamp: new Date().toISOString() })
+          body: JSON.stringify({
+            videoId,
+            seconds: 1,
+            provider: getNetworkProvider(),
+            timestamp: new Date().toISOString()
+          })
         }).catch(err => console.error("Stream tracking failed:", err));
 
-        sendAnalytics("view", 0.02); // unified analytics
+        sendAnalytics("view", 1); // 1MB per second
       }
     }, 1000);
 
     // --- Unified analytics ---
-    async function sendAnalytics(event, dataUsed) {
+    async function sendAnalytics(event, dataUsedMB) {
       try {
         await fetch(`${ANALYTICS_URL}/api/event`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ event, provider: getNetworkProvider(), dataUsed })
+          body: JSON.stringify({
+            event,
+            provider: getNetworkProvider(),
+            dataUsedMB
+          })
         });
-        console.log(`✅ Logged ${event} (${dataUsed}GB)`);
+        console.log(`✅ Logged ${event} (${dataUsedMB}MB)`);
       } catch (err) {
         console.error(`❌ Failed to log ${event}:`, err);
       }
     }
 
+    // --- Detect network provider dynamically ---
     function getNetworkProvider() {
       const ua = navigator.userAgent.toLowerCase();
       if (ua.includes("mtn")) return "MTN";
       if (ua.includes("airtel")) return "Airtel";
       if (ua.includes("glo")) return "Glo";
       if (ua.includes("9mobile")) return "9mobile";
+      if (ua.includes("spectranet")) return "Spectranet";
       return "Unknown";
     }
 
     // Optional: log initial video play
-    videoEl.addEventListener("play", () => sendAnalytics("view", 0.02));
+    videoEl.addEventListener("play", () => sendAnalytics("view", 1));
+
+    // Detect if network provider changes mid-stream
+    let lastProvider = getNetworkProvider();
+    setInterval(() => {
+      const currentProvider = getNetworkProvider();
+      if (currentProvider !== lastProvider) {
+        console.log(`📡 Provider changed from ${lastProvider} to ${currentProvider}`);
+        lastProvider = currentProvider;
+        sendAnalytics("provider-change", 0);
+      }
+    }, 5000);
+
   </script>
 </body>
 </html>

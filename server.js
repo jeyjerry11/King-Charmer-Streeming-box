@@ -18,6 +18,7 @@ mongoose.connect(MONGO_URI)
 const StreamSchema = new mongoose.Schema({
   videoId: { type: String, required: true },
   seconds: Number,
+  provider: { type: String, required: true }, // ✅ Add provider
   timestamp: { type: Date, default: Date.now }
 });
 
@@ -37,6 +38,7 @@ const UploadSchema = new mongoose.Schema({
 const ViewSchema = new mongoose.Schema({
   videoId: String,
   title: String,
+  provider: String, // ✅ Track provider for analytics
   timestamp: { type: Date, default: Date.now }
 });
 
@@ -48,16 +50,16 @@ const View = mongoose.model('View', ViewSchema);
 
 // ===== ROUTES =====
 
-// Track streams
+// Track streams (with provider)
 app.post('/api/track-stream', async (req, res) => {
   try {
-    const { videoId, seconds } = req.body;
-    if (!videoId) return res.status(400).json({ error: 'videoId required' });
+    const { videoId, seconds, provider } = req.body;
+    if (!videoId || !provider) return res.status(400).json({ error: 'videoId and provider required' });
 
-    const stream = new StreamLog({ videoId, seconds });
+    const stream = new StreamLog({ videoId, seconds, provider });
     await stream.save();
 
-    console.log(`📺 Stream logged: ${videoId}, ${seconds || 0}s`);
+    console.log(`📺 Stream logged: ${videoId}, ${seconds || 0}s, Provider: ${provider}`);
     res.status(201).json({ message: 'Stream logged' });
   } catch (err) {
     console.error('Stream log error:', err);
@@ -97,6 +99,23 @@ app.post('/api/new-video', async (req, res) => {
   }
 });
 
+// Log view (analytics) with provider
+app.post("/api/log-view", async (req, res) => {
+  try {
+    const { videoId, title, provider } = req.body;
+    if (!videoId || !provider) return res.status(400).json({ error: 'videoId and provider required' });
+
+    const view = new View({ videoId, title, provider });
+    await view.save();
+
+    console.log(`📊 View logged: ${videoId} - ${title}, Provider: ${provider}`);
+    res.json({ message: "View saved successfully" });
+  } catch (err) {
+    console.error('❌ View log error:', err);
+    res.status(500).json({ error: "Failed to save view" });
+  }
+});
+
 // Fetch all videos
 app.get('/api/videos', async (req, res) => {
   try {
@@ -105,20 +124,6 @@ app.get('/api/videos', async (req, res) => {
   } catch (err) {
     console.error('Fetch videos error:', err);
     res.status(500).json({ error: 'Failed to fetch videos' });
-  }
-});
-
-// Log view (analytics)
-app.post("/api/log-view", async (req, res) => {
-  try {
-    const { videoId, title, timestamp } = req.body;
-    const view = new View({ videoId, title, timestamp });
-    await view.save();
-    console.log(`📊 View logged: ${videoId} - ${title}`);
-    res.json({ message: "View saved successfully" });
-  } catch (err) {
-    console.error('❌ View log error:', err);
-    res.status(500).json({ error: "Failed to save view" });
   }
 });
 

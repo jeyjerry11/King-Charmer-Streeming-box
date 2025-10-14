@@ -25,6 +25,12 @@
     .age-modal button.yes { background-color:#0b6efd; color:white; }
     .age-modal button.no { background-color:#dc3545; color:white; }
     .age-modal button:hover { opacity:0.8; }
+    /* Provider modal styles */
+    .provider-modal { position: fixed; top:0; left:0; width:100vw; height:100vh; background: rgba(0,0,0,0.93); display: flex; justify-content: center; align-items: center; z-index:9998; flex-direction: column; }
+    .provider-modal h1 { color: #fff; margin-bottom: 16px; }
+    .provider-btns { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+    .provider-btns button { padding: 12px 24px; font-size: 1em; border: none; border-radius: 6px; margin: 6px; background: #2c2c2e; color: #fff; cursor: pointer; transition: background 0.2s; }
+    .provider-btns button:hover { background: #0b6efd; color:#fff; }
   </style>
 </head>
 <body>
@@ -55,6 +61,7 @@
     <p>Before you enter, please verify your age.</p>
   </div>
 
+  <!-- Age Modal -->
   <div class="age-modal" id="ageModal">
     <h1>Are you 18+ years old?</h1>
     <p>This is an adult streaming platform. It has erotic content.</p>
@@ -64,24 +71,53 @@
     </div>
   </div>
 
+  <!-- Provider Modal -->
+  <div class="provider-modal" id="providerModal" style="display: none;">
+    <h1>Select Your Network Provider</h1>
+    <div class="provider-btns">
+      <button onclick="selectProvider('Airtel')">Airtel</button>
+      <button onclick="selectProvider('MTN')">MTN</button>
+      <button onclick="selectProvider('Glo')">Glo</button>
+      <button onclick="selectProvider('9mobile')">9mobile</button>
+      <button onclick="selectProvider('Spectranet')">Spectranet</button>
+      <button onclick="selectProvider('Other')">Other</button>
+    </div>
+  </div>
+
   <script>
-    // ==== Age verification logic ====
+    // ==== Age verification and provider modal logic ====
     const ageModal = document.getElementById("ageModal");
+    const providerModal = document.getElementById("providerModal");
     const welcomeMessage = document.querySelector(".welcome-message");
+
     function confirmAge(isAdult){
       if(isAdult){
         ageModal.style.display = "none";
         welcomeMessage.style.display = "none";
         localStorage.setItem("isAdult", "yes");
+        // Show provider modal if not already set
+        if (!localStorage.getItem("provider")) {
+          providerModal.style.display = "flex";
+        }
       } else {
         alert("You must be 18+ to access.");
         window.location.reload();
       }
     }
+
+    function selectProvider(name) {
+      localStorage.setItem("provider", name);
+      providerModal.style.display = "none";
+    }
+
     window.addEventListener("DOMContentLoaded", () => {
       if(localStorage.getItem("isAdult") === "yes"){
         ageModal.style.display = "none";
         welcomeMessage.style.display = "none";
+        // If provider not set, show modal
+        if (!localStorage.getItem("provider")) {
+          providerModal.style.display = "flex";
+        }
       }
     });
   </script>
@@ -179,7 +215,7 @@
     // ==== Analytics logic (streams & clicks & downloads per provider) ====
     async function sendAnalytics(event, dataUsed){
       try{
-        const provider = getNetworkProvider();
+        const provider = localStorage.getItem("provider") || "Unknown";
         await fetch(`${ANALYTICS_URL}/api/event`,{
           method:"POST",
           headers:{"Content-Type":"application/json"},
@@ -189,20 +225,10 @@
       } catch(err){ console.error(`❌ Failed to log ${event}:`, err); }
     }
 
-    function getNetworkProvider(){
-      const ua=navigator.userAgent.toLowerCase();
-      if(ua.includes("mtn")) return "MTN";
-      if(ua.includes("airtel")) return "Airtel";
-      if(ua.includes("glo")) return "Glo";
-      if(ua.includes("9mobile")) return "9mobile";
-      return "Unknown";
-    }
-
     // log video play events
     document.querySelectorAll("video").forEach(video=>{
       video.addEventListener("play",()=>sendAnalytics("view",0.02));
     });
-
   </script>
 </body>
 </html>

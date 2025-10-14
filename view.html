@@ -87,9 +87,27 @@
     const params = new URLSearchParams(window.location.search);
     const videoUrl = decodeURIComponent(params.get("vid"));
     const videoId = params.get("id") || Date.now().toString();
+    const sessionId = localStorage.getItem("sessionId") || (()=>{
+      const id = Date.now().toString() + Math.random().toString(36).slice(2);
+      localStorage.setItem("sessionId", id);
+      return id;
+    })();
+
+    // Use provider from localStorage (user selection), fallback to detection
+    function getNetworkProvider() {
+      return localStorage.getItem("provider") || detectProvider();
+    }
+    function detectProvider() {
+      const ua = navigator.userAgent.toLowerCase();
+      if (ua.includes("mtn")) return "MTN";
+      if (ua.includes("airtel")) return "Airtel";
+      if (ua.includes("glo")) return "Glo";
+      if (ua.includes("9mobile")) return "9mobile";
+      if (ua.includes("spectranet")) return "Spectranet";
+      return "Unknown";
+    }
 
     // Backends
-    const BACKEND_URL = "https://king-charmer-streeming-box.onrender.com";
     const ANALYTICS_URL = "https://kingcharmer-analytics-co-ng.onrender.com";
 
     const RATE_MB = 1.8; // per second
@@ -128,13 +146,14 @@
       const chargeNGN = durationSec * RATE_NGN;
       downloadCostEl.textContent = `Download cost: ${formatDataSize(downloadMB)} / ₦${chargeNGN.toFixed(2)}`;
 
-      // Backend tracking
+      // Analytics backend tracking
       try {
-        await fetch(`${BACKEND_URL}/api/track-download`, {
+        await fetch(`${ANALYTICS_URL}/api/log-download`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             videoId,
+            sessionId,
             size: downloadMB,
             ngn: chargeNGN,
             provider: getNetworkProvider(),
@@ -145,73 +164,59 @@
       } catch (err) {
         console.error("Download tracking failed:", err);
       }
-
-      sendAnalytics("download", downloadMB, chargeNGN);
     }
 
     // --- Stream tracking ---
     let secondsViewed = 0;
+    let totalMB = 0;
+    let totalNGN = 0;
+
     setInterval(async () => {
       if (!videoEl.paused && !videoEl.ended) {
         secondsViewed++;
-        const usedMB = RATE_MB * secondsViewed;
-        const earnedNGN = RATE_NGN * secondsViewed;
-        streamCostEl.textContent = `Streaming cost: ${formatDataSize(usedMB)} / ₦${earnedNGN.toFixed(2)}`;
+        totalMB += RATE_MB;
+        totalNGN += RATE_NGN;
+        streamCostEl.textContent = `Streaming cost: ${formatDataSize(totalMB)} / ₦${totalNGN.toFixed(2)}`;
 
-        // Backend tracking
-        try {
-          await fetch(`${BACKEND_URL}/api/track-stream`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              videoId,
-              seconds: 1,
-              provider: getNetworkProvider(),
-              timestamp: new Date().toISOString()
-            })
-          });
-        } catch (err) {
-          console.error("Stream tracking failed:", err);
+        // Send cumulative session stats every 10 seconds (reduces writes and aggregates data)
+        if (secondsViewed % 10 === 0) {
+          try {
+            await fetch(`${ANALYTICS_URL}/api/log-stream`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                videoId,
+                sessionId,
+                seconds: secondsViewed,
+                dataUsedMB: totalMB,
+                earnedNGN: totalNGN,
+                provider: getNetworkProvider(),
+                timestamp: new Date().toISOString()
+              })
+            });
+            console.log(`📊 Stream logged: ${secondsViewed}s, ${totalMB}MB, ₦${totalNGN}`);
+          } catch (err) {
+            console.error("Stream tracking failed:", err);
+          }
         }
-
-        sendAnalytics("view", RATE_MB, RATE_NGN);
       }
     }, 1000);
 
-    // --- Unified analytics ---
-    async function sendAnalytics(event, dataUsedMB, earnedNGN) {
-      try {
-        await fetch(`${ANALYTICS_URL}/api/event`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            event,
-            provider: getNetworkProvider(),
-            dataUsedMB,
-            earnedNGN,
-            timestamp: new Date().toISOString()
-          })
-        });
-        console.log(`✅ Logged ${event}: ${dataUsedMB}MB / ₦${earnedNGN}`);
-      } catch (err) {
-        console.error(`❌ Failed to log ${event}:`, err);
-      }
-    }
-
-    // --- Detect network provider dynamically ---
-    function getNetworkProvider() {
-      const ua = navigator.userAgent.toLowerCase();
-      if (ua.includes("mtn")) return "MTN";
-      if (ua.includes("airtel")) return "Airtel";
-      if (ua.includes("glo")) return "Glo";
-      if (ua.includes("9mobile")) return "9mobile";
-      if (ua.includes("spectranet")) return "Spectranet";
-      return "Unknown";
-    }
-
     // --- Initial view log ---
     videoEl.addEventListener("play", () => {
-      sendAnalytics("view-start", 0, 0);
+      // Log start event
+      fetch(`${ANALYTICS_URL}/api/log-view`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          videoId,
+          event: "view-start",
+          provider: getNetworkProvider(),
+          dataUsedMB: 0,
+          earnedNGN: 0,
+          timestamp: new Date().toISOString()
+        })
+      });
       console.log("▶️ Video started");
     });
 
@@ -222,7 +227,18 @@
       if (currentProvider !== lastProvider) {
         console.log(`📡 Provider changed from ${lastProvider} ➜ ${currentProvider}`);
         lastProvider = currentProvider;
-        sendAnalytics("provider-change", 0, 0);
+        fetch(`${ANALYTICS_URL}/api/log-view`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            videoId,
+            event: "provider-change",
+            provider: currentProvider,
+            dataUsedMB: 0,
+            earnedNGN: 0,
+            timestamp: new Date().toISOString()
+          })
+        });
       }
     }, 5000);
   </script>
